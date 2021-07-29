@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -35,15 +36,35 @@ type Space struct {
 	Uri   string `json:"uri,omitempty"`
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func createSpace(w http.ResponseWriter, r *http.Request) {
 	// parse JSON body
 	reqBody, _ := ioutil.ReadAll(r.Body)
 	var space Space
 	_ = json.Unmarshal(reqBody, &space)
 
+	// validation
+	if len(space.Name) > 255 {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(ErrorResponse{Error: "spaces name to long"})
+		return
+	}
+
+	match, _ := regexp.Match("[a-zA-Z] [a-zA-Z0-9] {1,29}", []byte(space.Owner))
+	if !match {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid username" + space.Owner})
+		return
+	}
+
 	// perform database transaction
 	log.Println("INSERT INTO spaces(name, owner) VALUES('" + space.Name + "','" + space.Owner + "')")
-	result, err := db.Exec("INSERT INTO spaces(name, owner) VALUES('" + space.Name + "','" + space.Owner + "')")
+	result, err := db.Exec("INSERT INTO spaces(name, owner) VALUES(?,?)", space.Name, space.Owner)
 	if err != nil {
 		log.Println(fmt.Errorf("insert error: %v", err))
 		w.WriteHeader(http.StatusInternalServerError)
