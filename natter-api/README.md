@@ -1,71 +1,29 @@
-# Vulnerable API
+# Rate Limiter on code
 
-Kode yang kita buat sebelumnya masuk kedalam [top 10 owasp](https://owasp.org/www-project-api-security/).
-Artinya ada sercurity vulnerability yang serius.
+Rate Limiter adalah pencegahan dari penyerangan DDos. 
+Mekanismenya adalah membatasi request yang masuk. 
+Idealnya rate limiter dipasang pada load balancer atau reverse proxy.
+Pada contoh kali ini kita akan belajar membatasi dilevel code.
 
-Injection Attact bisa terjadi pada setiap API yang menerima inputan dari user dan mengesekusi query database.
-## Reproduce
+Contoh Kasus:
 
-Hit api dengan data
+Membatasi hanya 1 request perdetik.
 
+Di golang, kita bisa menggunakan library [tollbooth](https://github.com/didip/tollbooth).
+
+Ubah code 
 ```
-curl --location --request POST 'localhost:4567/spaces' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "name": "test",
-    "owner": "'\''); DELETE FROM spaces;  ## "
-}'
-```
-
-Data diatas akan berdampak mengerikan. Data dalam table space akan terhapus semua.
-
-### Penjelasan
-
-Dengan data seperti itu dan input tidak divalidasi maka akan membentuk query seperti ini
-
-```sql
-INSERT INTO spaces(name, owner) VALUES('test',''); DELETE FROM spaces;  ## ')
+	router.HandleFunc("/spaces", createSpace).Methods("POST")
 ```
 
-Artinya, kita seharusnya hanya menjalankan query insert. Tapi karena tidak divalidasi inputannya.
-Penyerang bisa menyisipi statement lain yang dapat merusak data kita.
-
-## Cara mencegah
-
-Cara mencegahnya ada 2, yaitu:
-
-1. Melalui Code
-2. Melalui SQL Permission
-
-### Melalui Code
-
-Ini adalah cara yang **DiRecomendasikan**, memperbaiki code dengan memvalidasi inputan.
-
-Untuk di golang hanya perlu mengubah cara execute querynya.
-
-Yang sebelumnya seperti ini
+Menjadi
 
 ```go
-db.Exec("INSERT INTO spaces(name, owner) VALUES('" + space.Name + "','" + space.Owner + "')")
+    router.Handle(
+		"/spaces",
+		tollbooth.LimitFuncHandler(tollbooth.NewLimiter(1, nil), createSpace),
+	).Methods("POST")
 ```
 
-menjadi
-
-```go
-db.Exec("INSERT INTO spaces(name, owner) VALUES(?,?)", space.Name, space.Name)
-```
-
-Dengan menggunakan argument, inputan yang akan diexecute akan dibersihkan dulu.
-Karakter karakter yang merusak query akan diubah formatnya, sehinga menjadi string biasa.
-
-Selain itu, agar lebih akurat sebaiknya kita memvalidasi setiap inputan yang kita terima.
-Misalnya seperti memeriksa jumlah karakter dan karakter yang boleh dimasukan kedalam database. 
-
-## Note
-
-untuk me-reproduce issue koneksi ke db harus disetmultistatement=true
-
-```bash
-root:root@tcp(127.0.0.1:3306)/natter?multiStatements=true
-```
-
+library [tollbooth](https://github.com/didip/tollbooth) juga memiliki beberapa konfigurasi.
+semisal jika ingin membatasi per IP address atau sepesifik authentication.

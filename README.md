@@ -25,7 +25,7 @@ docker run --name go-apisecurity -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mys
 
 ### Securing API
 
-- Rate Limiting
+- [x] Rate Limiting
 - Authentication
 - Encryption
 - Audit Logging

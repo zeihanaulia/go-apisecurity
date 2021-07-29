@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/didip/tollbooth"
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/gorilla/mux"
@@ -25,7 +26,10 @@ func main() {
 	db = conn
 
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/spaces", createSpace).Methods("POST")
+	router.Handle(
+		"/spaces",
+		tollbooth.LimitFuncHandler(tollbooth.NewLimiter(1, nil), createSpace),
+	).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":4567", router))
 }
