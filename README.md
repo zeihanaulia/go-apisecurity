@@ -18,7 +18,7 @@ docker run --name go-apisecurity -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mys
 
 - SQL Injection
     - [x] Vuln
-    - [ ] Fix
+    - [x] Fix
 - XSS Attack
     - [ ] Vuln
     - [ ] Fix
